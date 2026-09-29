@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0e17">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <title>CarDetect AI • Instant Vehicle Identification</title>
+  <meta name="description" content="Identify car make, model, trim, generation, and features from photos using Google Gemini Vision AI.">
+
+  <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow glow-top"></div>
+  <div class="ambient-glow glow-bottom"></div>
+
+  <!-- Main Container -->
+  <div class="app-wrapper">
+    
+    <!-- Top App Bar -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
+            <circle cx="7" cy="17" r="2"/>
+            <path d="M9 17h6"/>
+            <circle cx="17" cy="17" r="2"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">CarDetect<span class="accent-text">AI</span></span>
+          <span class="brand-tag">Gemini Vision Core</span>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <button id="api-status-btn" class="status-pill status-unknown" title="Check API Key status">
+          <span class="status-indicator"></span>
+          <span id="api-status-label">Checking API...</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Key Warning / Config Banner (Visible only if API key is missing) -->
+    <aside id="api-alert-banner" class="alert-banner hidden">
+      <div class="alert-content">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-text">
+          <strong>Gemini API Key Required</strong>
+          <p>Add <code>GEMINI_API_KEY=your_key</code> in your <code>.env</code> file, or set it below to test.</p>
+        </div>
+      </div>
+      <div class="alert-actions">
+        <button id="open-key-modal-btn" class="btn-xs btn-outline">Enter Key</button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+
+      <!-- Hero Introduction (shown when no image is loaded) -->
+      <section id="hero-section" class="hero-section">
+        <h1 class="hero-title">Scan any car.<br><span class="gradient-text">Instant AI Specs.</span></h1>
+        <p class="hero-subtitle">Identify make, model, trim, generation & visible features with Google Gemini computer vision.</p>
+      </section>
+
+      <!-- Input Trigger Section -->
+      <section id="capture-section" class="capture-section">
+        
+        <!-- Primary Dual Action Buttons (Mobile-first large touch targets) -->
+        <div class="action-grid">
+          <!-- Take Photo Button -->
+          <button id="btn-camera" class="action-card action-primary" type="button">
+            <div class="action-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <div class="action-info">
+              <span class="action-title">Take Photo</span>
+              <span class="action-desc">Use phone camera</span>
+            </div>
+          </button>
+
+          <!-- Upload Gallery Button -->
+          <button id="btn-gallery" class="action-card action-secondary" type="button">
+            <div class="action-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+              </svg>
+            </div>
+            <div class="action-info">
+              <span class="action-title">Photo Library</span>
+              <span class="action-desc">Upload from gallery</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Hidden Native File Inputs -->
+        <!-- Native Camera Input (uses rear camera on mobile) -->
+        <input type="file" id="native-camera-input" accept="image/*" capture="environment" class="visually-hidden">
+        <!-- Native Gallery File Input -->
+        <input type="file" id="native-gallery-input" accept="image/*" class="visually-hidden">
+
+        <!-- Drag & Drop Zone (Great for desktop or tablet) -->
+        <div id="drop-zone" class="drop-zone">
+          <div class="drop-content">
+            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p class="drop-prompt">Or drag & drop car photo here</p>
+            <span class="drop-subtext">Supports JPG, PNG, WEBP, HEIC</span>
+          </div>
+        </div>
+
+        <!-- Quick Demo Car Presets (Instant 1-tap testing) -->
+        <div class="samples-container">
+          <span class="samples-title">⚡ Or try with a quick sample:</span>
+          <div class="samples-row">
+            <button class="sample-chip" data-sample="gt3">
+              <span class="chip-dot dot-blue"></span>
+              <span>Sports Coupe (911)</span>
+            </button>
+            <button class="sample-chip" data-sample="model3">
+              <span class="chip-dot dot-red"></span>
+              <span>Electric Sedan</span>
+            </button>
+            <button class="sample-chip" data-sample="suv">
+              <span class="chip-dot dot-amber"></span>
+              <span>Modern SUV</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Image Preview & HUD Analysis Card -->
+      <section id="preview-section" class="preview-section hidden">
+        <div class="card preview-card">
+          
+          <!-- Card Header / Metadata -->
+          <div class="preview-card-header">
+            <div class="preview-meta">
+              <span class="meta-label">Selected Vehicle</span>
+              <span id="preview-filename" class="meta-filename">image.jpg</span>
+            </div>
+            <div class="preview-controls">
+              <button id="btn-change-image" class="btn-icon" title="Change Image">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                  <path d="M16 21h5v-5"/>
+                </svg>
+                <span>Change</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Image Viewport with HUD Overlay & Laser Scanner -->
+          <div class="preview-viewport-wrap">
+            <div class="preview-viewport">
+              <img id="preview-image" src="" alt="Vehicle preview">
+              
+              <!-- HUD Reticle Corners -->
+              <div class="hud-corner top-left"></div>
+              <div class="hud-corner top-right"></div>
+              <div class="hud-corner bottom-left"></div>
+              <div class="hud-corner bottom-right"></div>
+              
+              <!-- Scanning Beam (Active during analysis) -->
+              <div id="scanner-laser" class="scanner-laser hidden">
+                <div class="laser-line"></div>
+                <div class="laser-flare"></div>
+              </div>
+
+              <!-- Scanning Status Pill -->
+              <div id="scanning-badge" class="scanning-badge hidden">
+                <span class="pulse-ring"></span>
+                <span id="scanning-text">Analyzing vehicle geometry...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action CTA -->
+          <div class="preview-card-footer">
+            <button id="btn-analyze" class="btn-analyze" type="button">
+              <div class="btn-analyze-content">
+                <svg class="analyze-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="m10 15 5-3-5-3v6z"/>
+                </svg>
+                <span class="analyze-text">Analyze Vehicle</span>
+              </div>
+              <div class="btn-loader hidden">
+                <div class="spinner"></div>
+                <span>Scanning with Gemini...</span>
+              </div>
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Results Section (Generated Vehicle Intelligence Report) -->
+      <section id="results-section" class="results-section hidden">
+        
+        <!-- Result Header / Main Vehicle Title Card -->
+        <div class="card result-hero-card">
+          
+          <div class="result-hero-top">
+            <div class="result-badge-wrap">
+              <span id="res-badge-status" class="badge badge-verified">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="res-badge-text">Identified</span>
+              </span>
+              <span id="res-confidence-badge" class="badge badge-confidence">
+                <span id="res-confidence-level">High</span> Confidence
+              </span>
+            </div>
+
+            <!-- Quick Action: Re-scan -->
+            <button id="btn-new-scan" class="btn-text-action">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              <span>New Scan</span>
+            </button>
+          </div>
+
+          <!-- Primary Heading -->
+          <div class="result-title-group">
+            <div class="make-label" id="res-make">Porsche</div>
+            <h2 class="model-title" id="res-model">911 GT3</h2>
+            <div class="variant-subtitle" id="res-variant">GT3 Touring Package</div>
+          </div>
+
+          <!-- Uncertainty Warning Box (Displayed ONLY when model is uncertain or cannot be verified) -->
+          <div id="res-uncertainty-box" class="uncertainty-box hidden">
+            <div class="uncertainty-icon">⚠️</div>
+            <div class="uncertainty-content">
+              <strong>Exact Model Ambiguity Note</strong>
+              <p id="res-uncertainty-note">The exact model cannot be determined definitively. See details below.</p>
+            </div>
+          </div>
+
+          <!-- Non-vehicle Alert (Displayed if not a vehicle) -->
+          <div id="res-non-vehicle-box" class="non-vehicle-box hidden">
+            <div class="non-vehicle-icon">🚫</div>
+            <div class="non-vehicle-content">
+              <strong>No Automobile Detected</strong>
+              <p>The analyzed image does not appear to contain a recognizable car or vehicle.</p>
+            </div>
+          </div>
+
+          <!-- Concise AI Summary -->
+          <div class="result-summary-box">
+            <p id="res-description">High-performance sports coupe featuring track-honed aerodynamics, lightweight construction, and distinctive center-locking alloy wheels.</p>
+          </div>
+
+        </div>
+
+        <!-- Vehicle Specs Matrix Grid -->
+        <div class="specs-grid">
+          
+          <!-- Make Spec -->
+          <div class="spec-card">
+            <div class="spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6M12 9v6"/></svg>
+            </div>
+            <div class="spec-data">
+              <span class="spec-label">Manufacturer</span>
+              <span id="spec-make" class="spec-value">-</span>
+            </div>
+          </div>
+
+          <!-- Model Spec -->
+          <div class="spec-card">
+            <div class="spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+            </div>
+            <div class="spec-data">
+              <span class="spec-label">Model</span>
+              <span id="spec-model" class="spec-value">-</span>
+            </div>
+          </div>
+
+          <!-- Approx Generation / Year -->
+          <div class="spec-card">
+            <div class="spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="spec-data">
+              <span class="spec-label">Est. Generation / Year</span>
+              <span id="spec-year" class="spec-value">-</span>
+            </div>
+          </div>
+
+          <!-- Body Style -->
+          <div class="spec-card">
+            <div class="spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1L2 11.5V16h2"/><circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>
+            </div>
+            <div class="spec-data">
+              <span class="spec-label">Body Type</span>
+              <span id="spec-body" class="spec-value">-</span>
+            </div>
+          </div>
+
+          <!-- Exterior Colour -->
+          <div class="spec-card">
+            <div class="spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0 7 7c0 2.5-1.5 4.5-4 4.5h-1a2 2 0 0 0-2 2v1a2 2 0 0 1-2 2 5 5 0 0 1-5-5c0-6.6 4.5-11.5 7-11.5z"/></svg>
+            </div>
+            <div class="spec-data">
+              <span class="spec-label">Exterior Colour</span>
+              <div class="spec-color-row">
+                <span id="spec-color-dot" class="color-swatch-dot"></span>
+                <span id="spec-color" class="spec-value">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Confidence Assessment -->
+          <div class="spec-card">
+            <div class="spec-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="spec-data">
+              <span class="spec-label">Confidence Assessment</span>
+              <span id="spec-confidence" class="spec-value">-</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Visible Features Card -->
+        <div class="card features-card">
+          <div class="features-header">
+            <div class="features-title-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M12 2v20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"/></svg>
+              <h3 class="features-title">Visible Exterior Features</h3>
+            </div>
+            <span id="features-count" class="features-count-badge">0 detected</span>
+          </div>
+
+          <div id="features-list" class="features-chips">
+            <!-- Dynamically populated chips -->
+          </div>
+
+          <!-- Confidence Reasoning Note -->
+          <div class="reasoning-box">
+            <span class="reasoning-title">AI Identification Basis:</span>
+            <p id="res-reasoning" class="reasoning-text">-</p>
+          </div>
+        </div>
+
+        <!-- Results Bottom Actions -->
+        <div class="results-actions">
+          <button id="btn-copy-report" class="btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            <span>Copy Specs</span>
+          </button>
+          <button id="btn-scan-another" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>Scan Another Car</span>
+          </button>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p class="footer-credit">CarDetect AI • Powered by Google Gemini Vision Core</p>
+      <p class="footer-security">🔒 Secure Backend Architecture • No API keys stored in client code</p>
+    </footer>
+
+  </div>
+
+  <!-- Live Camera Viewfinder Modal (For immersive in-app capture) -->
+  <div id="camera-modal" class="modal-backdrop hidden">
+    <div class="camera-modal-dialog">
+      <div class="camera-header">
+        <span class="camera-title">Align Vehicle in Frame</span>
+        <button id="btn-close-camera" class="btn-icon-close">✕</button>
+      </div>
+      <div class="camera-viewport-wrap">
+        <video id="camera-video" playsinline autoplay muted></video>
+        <canvas id="camera-canvas" class="hidden"></canvas>
+        <div class="camera-guide-overlay">
+          <div class="guide-box">
+            <span class="guide-corner tl"></span>
+            <span class="guide-corner tr"></span>
+            <span class="guide-corner bl"></span>
+            <span class="guide-corner br"></span>
+            <div class="guide-center-cross"></div>
+          </div>
+        </div>
+      </div>
+      <div class="camera-toolbar">
+        <button id="btn-flip-camera" class="btn-camera-opt" title="Switch Camera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0-4.4-3.6-8-8-8s-8 3.6-8 8h3l-4 5-4-5h3c0-5.5 4.5-10 10-10s10 4.5 10 10h-2z"/><path d="M4 14c0 4.4 3.6 8 8 8s8-3.6 8-8h-3l4-5 4 5h-3c0 5.5-4.5 10-10 10S4 19.5 4 14h2z"/></svg>
+        </button>
+        <button id="btn-capture-shutter" class="btn-shutter" aria-label="Take Photo">
+          <div class="shutter-inner"></div>
+        </button>
+        <button id="btn-camera-upload-fallback" class="btn-camera-opt" title="Upload from Device">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Key Setup / Config Modal -->
+  <div id="key-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Gemini API Key Setup</h3>
+        <button id="btn-close-key-modal" class="btn-icon-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          To analyze vehicles, the backend requires a Google Gemini API key from 
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+        </p>
+
+        <div class="setup-option-box">
+          <span class="option-title">Option 1: Recommended (.env file)</span>
+          <p class="option-text">Create or edit <code>.env</code> in the project root directory:</p>
+          <pre class="code-box"><code>GEMINI_API_KEY=AIzaSy...</code></pre>
+        </div>
+
+        <div class="setup-option-box">
+          <span class="option-title">Option 2: Test in this session</span>
+          <p class="option-text">Provide key for this browser session (sent securely to the backend for verification):</p>
+          <input type="password" id="input-session-key" class="text-input" placeholder="Paste AIzaSy... key here">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-save-session-key" class="btn-primary btn-block">Save & Verify</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
